@@ -1,3 +1,5 @@
+import java.util.LinkedList;
+
 public class Graph {
     private final GraphNode[] vertices;  // Adjacency list for graph.
     private final String name;  //The file from which the graph was created.
@@ -38,8 +40,36 @@ public class Graph {
      * Algorithm to find an augmenting path in a network
      */
     private boolean hasAugmentingPath(int s, int t) {
-        // TODO:
-        return false;
+        var q = new LinkedList<Integer>();
+
+        // Reset parent of all vertices
+        for (GraphNode v : vertices) {
+            v.parent = -1;
+        }
+
+        // Add s to the queue
+        q.addFirst(s);
+
+        // While queue is not empty and vertex t does not have a parent
+        while (!q.isEmpty() && getVertex(t).parent < 0) {
+            // Remove from queue as vertex v
+            int v = q.removeFirst();
+
+            // For all successor edges from v
+            for (GraphNode.EdgeInfo e : getVertex(v).successor) {
+                // For the edge, call the other vertex w
+                int w = e.to;
+                // If there is residual capacity from v to w and not already part of the augmenting path, and it isn't vertex s, then it can be used
+                if (e.capacity > 0 && getVertex(w).parent < 0 && w != s) {
+                    // Remember the path; set parent of w to v
+                    getVertex(w).parent = v;
+                    // Add w to the queue
+                    q.addFirst(w);
+                }
+            }
+        }
+        // If vertex t has a parent, then there is an augmenting path from s to t
+        return getVertex(t).parent >= 0;
     }
 
     /**
@@ -57,5 +87,14 @@ public class Graph {
             sb.append((vertex.toString()));
         }
         return sb.toString();
+    }
+
+    private GraphNode getVertex(int id) {
+        for (GraphNode v : vertices) {
+            if (v.id == id) {
+                return v;
+            }
+        }
+        return null;
     }
 }
