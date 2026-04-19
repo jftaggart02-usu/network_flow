@@ -32,8 +32,69 @@ public class Graph {
      * Algorithm to find max-flow in a network
      */
     public int findMaxFlow(int s, int t, boolean report) {
-        // TODO:
-        return 0;
+        // Set total flow to zero
+        int totalFlow = 0;
+
+        // While there is an augmenting path
+        while (hasAugmentingPath(s, t)) {
+
+            // Set the available flow to the largest possible integer that Java can represent
+            int availableFlow = Integer.MAX_VALUE;
+
+            // Follow the augmenting path from t to s; using vertex v as the current vertex
+            // Set available flow to the minimum capacity of an edge along the path from s to t
+            int v = t;
+            while (v != s) {
+
+                // Get the edge from the parent of v to v
+                // Set available flow to min of available flow and edge capacity
+                int p = getVertex(v).parent;
+                for (GraphNode.EdgeInfo e : getVertex(p).successor) {
+                    if (e.to == v) {
+                        availableFlow = Math.min(availableFlow, e.capacity);
+                    }
+                }
+
+                // Update v
+                v = p;
+
+            }
+
+            // Follow the augmenting path from t to s; using vertex v as the current vertex
+            // Update the residual graph
+            // Subtract available flow in direction of s to t
+            // Add available flow in direction of t to s
+            v = t;
+            while (v != s) {
+
+                // Get parent
+                int p = getVertex(v).parent;
+
+                // Get the edge in direction of s to t and subtract available flow
+                for (GraphNode.EdgeInfo e: getVertex(p).successor) {
+                    if (e.to == v) {
+                        e.capacity -= availableFlow;
+                    }
+                }
+
+                // Get the edge in direction of t to s and add available flow
+                for (GraphNode.EdgeInfo e : getVertex(v).successor) {
+                    if (e.to == p) {
+                        e.capacity += availableFlow;
+                    }
+                }
+
+                // Update v
+                v = p;
+
+            }
+
+            // Add available flow to total flow
+            totalFlow += availableFlow;
+
+        }
+
+        return totalFlow;
     }
 
     /**
