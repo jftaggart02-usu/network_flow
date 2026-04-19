@@ -3,6 +3,7 @@ import java.util.LinkedList;
 public class Graph {
     private final GraphNode[] vertices;  // Adjacency list for graph.
     private final String name;  //The file from which the graph was created.
+    private int[][] flow;  // Keep track of flow for all edges
 
     public Graph(String name, int vertexCount) {
         this.name = name;
@@ -10,6 +11,14 @@ public class Graph {
         vertices = new GraphNode[vertexCount];
         for (int vertex = 0; vertex < vertexCount; vertex++) {
             vertices[vertex] = new GraphNode(vertex);
+        }
+
+        // Initialize flow for all edges to 0
+        flow = new int[vertexCount][vertexCount];
+        for (int i = 0; i < flow.length; i++) {
+            for (int j = 0; j < flow[i].length; j++) {
+                flow[i][j] = 0;
+            }
         }
     }
 
@@ -32,81 +41,68 @@ public class Graph {
      * Algorithm to find max-flow in a network
      */
     public int findMaxFlow(int s, int t, boolean report) {
+        GraphNode source = getVertex(s);
+        GraphNode sink = getVertex(t);
+
         // Set total flow to zero
         int totalFlow = 0;
 
         // While there is an augmenting path
         while (hasAugmentingPath(s, t)) {
 
-            // Keep track of augmenting path for display purposes only
-            var augmentingPath = new LinkedList<Integer>();
-
-            // Set the available flow to the largest possible integer that Java can represent
+            // Set available flow to the largest possible integer
             int availableFlow = Integer.MAX_VALUE;
 
-            // Follow the augmenting path from t to s; using vertex v as the current vertex
-            // Set available flow to the minimum capacity of an edge along the path from s to t
-            int v = t;
-            augmentingPath.addFirst(v);  // For display purposes
-            while (v != s) {
+            // Keep track of augmenting path for display purposes
+            var augmentingPath = new LinkedList<Integer>();
 
-                // Get the edge from the parent of v to v
-                // Set available flow to min of available flow and edge capacity
-                int p = getVertex(v).parent;
-                for (GraphNode.EdgeInfo e : getVertex(p).successor) {
-                    if (e.to == v) {
-                        availableFlow = Math.min(availableFlow, e.capacity);
-                    }
-                }
-
-                // Update v
-                v = p;
-                augmentingPath.addFirst(v);  // For display purposes
-
-            }
-
-            // Print the augmenting path and available flow
-            System.out.printf("Flow %d: ", availableFlow);
-            for (int vtx : augmentingPath) {
-                System.out.printf("%d ", vtx);
-            }
-            System.out.println();
-
-            // Follow the augmenting path from t to s; using vertex v as the current vertex
-            // Update the residual graph
-            // Subtract available flow in direction of s to t
-            // Add available flow in direction of t to s
-            v = t;
-            while (v != s) {
+            // Find min available flow in augmenting path
+            GraphNode v = sink;
+            augmentingPath.addFirst(v.id);
+            while (v != source) {
 
                 // Get parent
-                int p = getVertex(v).parent;
+                GraphNode p = getVertex(v.parent);
 
-                // Get the edge in direction of s to t and subtract available flow
-                for (GraphNode.EdgeInfo e: getVertex(p).successor) {
-                    if (e.to == v) {
-                        e.capacity -= availableFlow;
-                    }
-                }
+                // Get edge from parent to child
+                GraphNode.EdgeInfo e = getEdge(p, v);
 
-                // Get the edge in direction of t to s and add available flow
-                for (GraphNode.EdgeInfo e : getVertex(v).successor) {
-                    if (e.to == p) {
-                        e.capacity += availableFlow;
-                    }
-                }
+                // Update min flow in residual graph
+                availableFlow = Math.min(availableFlow, getResidual(e));
 
-                // Update v
+                v = p;
+                augmentingPath.addFirst(v.id);
+
+            }
+
+            // Update residual using available flow
+            v = sink;
+            while (v != source) {
+
+                // Get parent
+                GraphNode p = getVertex(v.parent);
+
+                // Get edge from parent to child
+                GraphNode.EdgeInfo e = getEdge(p, v);
+
+                // Update min flow in residual graph
+                updateResidual(e, availableFlow);
+
                 v = p;
 
             }
 
-            // Add available flow to total flow
             totalFlow += availableFlow;
 
-        }
+            if (report) {
+                System.out.print("Flow " + availableFlow + ":");
+                for (Integer a : augmentingPath) {
+                    System.out.print(" " + a);
+                }
+                System.out.println();
+            }
 
-        System.out.println();
+        }
 
         return totalFlow;
     }
@@ -115,43 +111,48 @@ public class Graph {
      * Algorithm to find an augmenting path in a network
      */
     private boolean hasAugmentingPath(int s, int t) {
-        var q = new LinkedList<Integer>();
+        GraphNode source = getVertex(s);
+        GraphNode sink = getVertex(t);
+
+        var q = new LinkedList<GraphNode>();
 
         // Reset parent of all vertices
         for (GraphNode v : vertices) {
             v.parent = -1;
         }
 
-        // Add s to the queue
-        q.addFirst(s);
+        // Add source vertex to the queue
+        q.addLast(source);
 
-        // While queue is not empty and vertex t does not have a parent
-        while (!q.isEmpty() && getVertex(t).parent < 0) {
-            // Remove from queue as vertex v
-            int v = q.removeFirst();
+        // Perform a breadth-first search and find the shortest path (in terms of number of edges) through the residual
+        // graph with non-zero edge weights
+        while (!q.isEmpty() && sink.parent < 0) {
+            // Remove a vertex (v) from the queue
+            GraphNode v = q.removeFirst();
 
-            // For all successor edges from v
-            for (GraphNode.EdgeInfo e : getVertex(v).successor) {
-                // For the edge, call the other vertex w
-                int w = e.to;
-                // If there is residual capacity from v to w and not already part of the augmenting path, and it isn't vertex s, then it can be used
-                if (e.capacity > 0 && getVertex(w).parent < 0 && w != s) {
-                    // Remember the path; set parent of w to v
-                    getVertex(w).parent = v;
-                    // Add w to the queue
-                    q.addFirst(w);
+            // Examine all of v's neighbors (w)
+            for (GraphNode.EdgeInfo e : v.successor) {
+
+                GraphNode w = getVertex(e.to);
+
+                // If there is residual capacity from v to w, and w has not been visited (i.e. no parent) and w is not s
+                // Add to the queue and mark as visited (i.e. keep track of parent)
+                if (getResidual(e) > 0 && w.parent < 0 && w.id != source.id) {
+                    q.addLast(w);
+                    w.parent = v.id;
                 }
+
             }
         }
         // If vertex t has a parent, then there is an augmenting path from s to t
-        return getVertex(t).parent >= 0;
+        return sink.parent >= 0;
     }
 
     /**
      * Algorithm to find the min-cut edges in a network
      */
     public void findMinCut(int s) {
-        // TODO:
+
     }
 
     public String toString() {
@@ -172,4 +173,39 @@ public class Graph {
         }
         return null;
     }
+
+    private int getResidual(GraphNode.EdgeInfo e) {
+        if (e.capacity == 0) {
+            return flow[e.from][e.to];
+        }
+
+        if (e.capacity < 0) {
+            System.out.println("Warning! Negative edge capacity encountered!");
+        }
+
+        return e.capacity - flow[e.to][e.from];
+    }
+
+    private void updateResidual(GraphNode.EdgeInfo e, int change) {
+        if (e.capacity == 0) {
+            flow[e.from][e.to] -= change;
+        }
+
+        if (e.capacity < 0) {
+            System.out.println("Warning! Negative edge capacity encountered!");
+        }
+
+        flow[e.to][e.from] += change;
+    }
+
+    // Get edge from v1 to v2
+    private GraphNode.EdgeInfo getEdge(GraphNode v1, GraphNode v2) {
+        for (GraphNode.EdgeInfo e : v1.successor) {
+            if (e.to == v2.id) {
+                return e;
+            }
+        }
+        return null;
+    }
+
 }
