@@ -104,6 +104,20 @@ public class Graph {
 
         }
 
+        if (report) {
+            System.out.println();
+            for (GraphNode v : vertices) {
+                for (GraphNode.EdgeInfo e : v.successor) {
+                    if (e.capacity > 0) {
+                        int transport = flow[e.from][e.to];
+                        if (transport > 0) {
+                            System.out.printf("Edge(%d, %d) transports %d items\n", e.from, e.to, transport);
+                        }
+                    }
+                }
+            }
+        }
+
         return totalFlow;
     }
 
@@ -176,26 +190,26 @@ public class Graph {
 
     private int getResidual(GraphNode.EdgeInfo e) {
         if (e.capacity == 0) {
-            return flow[e.from][e.to];
+            return flow[e.to][e.from];
         }
 
         if (e.capacity < 0) {
             System.out.println("Warning! Negative edge capacity encountered!");
         }
 
-        return e.capacity - flow[e.to][e.from];
+        return e.capacity - flow[e.from][e.to];
     }
 
     private void updateResidual(GraphNode.EdgeInfo e, int change) {
         if (e.capacity == 0) {
-            flow[e.from][e.to] -= change;
+            flow[e.to][e.from] -= change;
         }
 
         if (e.capacity < 0) {
             System.out.println("Warning! Negative edge capacity encountered!");
         }
 
-        flow[e.to][e.from] += change;
+        flow[e.from][e.to] += change;
     }
 
     // Get edge from v1 to v2
