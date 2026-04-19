@@ -38,12 +38,16 @@ public class Graph {
         // While there is an augmenting path
         while (hasAugmentingPath(s, t)) {
 
+            // Keep track of augmenting path for display purposes only
+            var augmentingPath = new LinkedList<Integer>();
+
             // Set the available flow to the largest possible integer that Java can represent
             int availableFlow = Integer.MAX_VALUE;
 
             // Follow the augmenting path from t to s; using vertex v as the current vertex
             // Set available flow to the minimum capacity of an edge along the path from s to t
             int v = t;
+            augmentingPath.addFirst(v);  // For display purposes
             while (v != s) {
 
                 // Get the edge from the parent of v to v
@@ -57,8 +61,16 @@ public class Graph {
 
                 // Update v
                 v = p;
+                augmentingPath.addFirst(v);  // For display purposes
 
             }
+
+            // Print the augmenting path and available flow
+            System.out.printf("Flow %d: ", availableFlow);
+            for (int vtx : augmentingPath) {
+                System.out.printf("%d ", vtx);
+            }
+            System.out.println();
 
             // Follow the augmenting path from t to s; using vertex v as the current vertex
             // Update the residual graph
@@ -93,6 +105,8 @@ public class Graph {
             totalFlow += availableFlow;
 
         }
+
+        System.out.println();
 
         return totalFlow;
     }
