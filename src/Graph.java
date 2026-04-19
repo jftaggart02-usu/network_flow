@@ -41,6 +41,10 @@ public class Graph {
      * Algorithm to find max-flow in a network
      */
     public int findMaxFlow(int s, int t, boolean report) {
+        if (report) {
+            System.out.println("-- Max Flow: " + name + " --");
+        }
+
         GraphNode source = getVertex(s);
         GraphNode sink = getVertex(t);
 
@@ -166,7 +170,64 @@ public class Graph {
      * Algorithm to find the min-cut edges in a network
      */
     public void findMinCut(int s) {
+        GraphNode source = getVertex(s);
 
+        var q = new LinkedList<GraphNode>();
+
+        // Reset visited for all vertices
+        for (GraphNode v : vertices) {
+            v.visited = false;
+        }
+
+        // Add source vertex to the queue
+        q.addLast(source);
+        source.visited = true;
+
+        // Perform a breadth-first search to identify all vertices that can be reached from source through residual graph
+        while (!q.isEmpty()) {
+            // Remove a vertex (v) from the queue
+            GraphNode v = q.removeFirst();
+
+            // Examine all of v's neighbors (w)
+            for (GraphNode.EdgeInfo e : v.successor) {
+
+                GraphNode w = getVertex(e.to);
+
+                // If there is residual capacity from v to w, and w has not been visited
+                // Add w to the queue and mark as visited
+                if (getResidual(e) > 0 && !w.visited) {
+                    q.addLast(w);
+                    w.visited = true;
+                }
+
+            }
+        }
+
+        var reachable = new LinkedList<Integer>();
+        for (GraphNode v : vertices) {
+            if (v.visited) {
+                reachable.add(v.id);
+            }
+        }
+
+        // Cut all edges flowing out of the "reachable" set that are transporting flow
+        var minCutEdges = new LinkedList<GraphNode.EdgeInfo>();
+        for (Integer id : reachable) {
+            GraphNode v = getVertex(id);
+            for (GraphNode.EdgeInfo e : v.successor) {
+                if (!reachable.contains(e.to)) {
+                    if (e.capacity > 0 && flow[e.from][e.to] > 0) {
+                        minCutEdges.add(e);
+                    }
+                }
+            }
+        }
+
+        System.out.println();
+        System.out.println("-- Min Cut: " + name + " --");
+        for (GraphNode.EdgeInfo e : minCutEdges) {
+            System.out.printf("Min Cut Edge: (%d, %d)\n", e.from, e.to);
+        }
     }
 
     public String toString() {
